@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MotoLog">
+  <meta name="theme-color" content="#0e0e0e">
+  <title>MotoLog · Honda Vario 150</title>
+
+  <!-- PWA Icons (inline SVG as data URI) -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%230e0e0e'/%3E%3Ctext x='90' y='115' font-size='80' text-anchor='middle'%3E🏍️%3C/text%3E%3C/svg%3E">
+
+  <style>
+    :root {
+      --bg: #0e0e0e;
+      --bg2: #141414;
+      --bg3: #1a1a1a;
+      --border: #222;
+      --border2: #2a2a2a;
+      --text: #e8e8e0;
+      --text2: #888;
+      --text3: #444;
+      --accent-oli: #ffaa00;
+      --accent-servis: #4488ff;
+      --accent-part: #1aff8c;
+      --danger: #ff3333;
+      --warn: #ff9900;
+      --font: 'Courier New', Courier, monospace;
+      --safe-top: env(safe-area-inset-top);
+      --safe-bot: env(safe-area-inset-bottom);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      overscroll-behavior: none;
+    }
+
+    /* ── LAYOUT ── */
+    #app { display: flex; flex-direction: column; height: 100vh; height: -webkit-fill-available; }
+
+    #header {
+      background: #111;
+      border-bottom: 2px solid #1a1a1a;
+      padding: calc(12px + var(--safe-top)) 18px 12px;
+      flex-shrink: 0;
+    }
+    .header-sub { font-size: 9px; letter-spacing: 4px; color: var(--text3); margin-bottom: 4px; }
+    .header-row { display: flex; justify-content: space-between; align-items: center; }
+    .header-title { font-size: 20px; font-weight: 900; letter-spacing: 1px; }
+
+    .km-wrap { text-align: right; }
+    .km-label { font-size: 8px; letter-spacing: 3px; color: var(--text3); }
+    .km-input {
+      background: none; border: none; border-bottom: 2px solid #333;
+      color: var(--text); font-family: var(--font); font-size: 16px;
+      font-weight: 900; text-align: right; width: 110px; outline: none;
+      padding: 2px 4px;
+    }
+    .km-unit { font-size: 9px; color: var(--text3); letter-spacing: 2px; }
+
+    /* ── ALERT BANNER ── */
+    #alert-banner {
+      background: #1a1000; border-bottom: 1px solid #ff990055;
+      padding: 10px 18px; display: none; position: relative;
+    }
+    #alert-banner.show { display: block; }
+    .alert-title { font-size: 9px; letter-spacing: 3px; color: var(--warn); font-weight: 900; margin-bottom: 6px; }
+    .alert-item { font-size: 11px; color: #cc8800; margin-bottom: 2px; }
+    #alert-close {
+      position: absolute; top: 10px; right: 14px; background: none; border: none;
+      color: var(--text3); font-size: 18px; cursor: pointer; line-height: 1;
+    }
+
+    /* ── TABS ── */
+    #tabbar {
+      background: #111; border-bottom: 1px solid #1a1a1a;
+      display: flex; overflow-x: auto; flex-shrink: 0;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    #tabbar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--text3); font-family: var(--font); font-size: 10px;
+      letter-spacing: 2px; padding: 10px 16px; cursor: pointer;
+      white-space: nowrap; font-weight: 400; flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active { color: var(--text); border-bottom-color: var(--text); font-weight: 900; }
+
+    /* ── SCROLL CONTENT ── */
+    #content {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 16px 18px calc(16px + var(--safe-bot));
+    }
+    .tab-panel { display: none; max-width: 680px; margin: 0 auto; }
+    .tab-panel.active { display: block; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--bg2); border: 1px solid var(--border);
+      padding: 14px 16px; margin-bottom: 12px;
+    }
+    .card-label {
+      font-size: 9px; letter-spacing: 3px; color: var(--text3);
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+
+    /* ── STATUS BADGE ── */
+    .badge {
+      display: inline-block; font-size: 10px; font-weight: 900;
+      letter-spacing: 1px; padding: 2px 8px;
+    }
+    .badge-ok { background: #1aff8c22; color: #1aff8c; border: 1px solid #1aff8c44; }
+    .badge-warn { background: var(--warn); color: #000; }
+    .badge-danger { background: var(--danger); color: #fff; }
+    .badge-empty { color: var(--text3); font-size: 10px; }
+
+    /* ── GRID 2 ── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+    /* ── MINI CARD ── */
+    .mini-card {
+      background: var(--bg); padding: 12px; border: 1px solid var(--border);
+    }
+    .mini-label { font-size: 8px; letter-spacing: 3px; color: var(--text3); margin-bottom: 3px; }
+    .mini-val { font-size: 12px; font-weight: 700; }
+    .mini-sub { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+    /* ── PART ROW ── */
+    .part-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid #1a1a1a;
+    }
+    .part-name { font-size: 12px; }
+    .part-tag { font-size: 8px; font-weight: 900; letter-spacing: 1px; margin-left: 6px; }
+    .tag-kritis { color: var(--danger); }
+    .tag-tinggi { color: var(--warn); }
+
+    /* ── OLI CARD ── */
+    .oli-card { border-left: 3px solid transparent; }
+    .oli-card.top { border-left-color: var(--accent-oli); }
+    .oli-star { color: #ffaa00; font-size: 11px; }
+    .oli-badge { font-size: 8px; letter-spacing: 3px; color: var(--accent-oli); margin-bottom: 3px; }
+    .oli-name { font-size: 14px; font-weight: 900; }
+    .oli-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+    .oli-tip { font-size: 11px; color: var(--text2); border-left: 2px solid #333; padding-left: 10px; margin-top: 8px; }
+
+    /* ── SPARE PART DETAIL ── */
+    .sp-card { border-left: 3px solid #333; }
+    .sp-kritis { border-left-color: var(--danger); }
+    .sp-tinggi { border-left-color: var(--warn); }
+    .sp-priority { font-size: 9px; letter-spacing: 2px; font-weight: 900; margin-bottom: 3px; }
+    .sp-name { font-size: 14px; font-weight: 900; }
+    .sp-code { font-size: 10px; color: var(--text3); margin-top: 2px; }
+    .sp-price { font-size: 10px; color: var(--accent-part); font-weight: 700; }
+    .sp-tip { font-size: 11px; color: #666; border-left: 2px solid #1e1e1e; padding-left: 10px; font-style: italic; margin-top: 8px; }
+
+    /* ── LOG ITEM ── */
+    .log-item { padding: 10px 12px; margin-bottom: 8px; background: var(--bg); }
+    .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .log-type { font-size: 9px; font-weight: 900; letter-spacing: 2px; }
+    .log-date { font-size: 10px; color: var(--text3); }
+    .log-km { font-size: 12px; margin-top: 2px; }
+    .log-note { font-size: 11px; color: var(--text2); margin-top: 3px; font-style: italic; }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      background: var(--text); color: var(--bg); border: none;
+      padding: 10px 18px; font-family: var(--font); font-weight: 900;
+      font-size: 11px; letter-spacing: 2px; cursor: pointer;
+      text-transform: uppercase; width: 100%;
+    }
+    .btn-secondary {
+      background: none; color: var(--text2); border: 1px solid var(--border2);
+      padding: 10px 18px; font-family: var(--font); font-size: 11px;
+      letter-spacing: 2px; cursor: pointer; width: 100%;
+    }
+    .btn-action {
+      background: var(--bg3); color: var(--text2); border: 1px solid var(--border2);
+      padding: 5px 12px; font-family: var(--font); font-size: 10px;
+      letter-spacing: 2px; cursor: pointer; text-transform: uppercase; margin-top: 10px;
+    }
+    .btn-danger {
+      background: none; color: #883333; border: 1px solid #3a1a1a;
+      padding: 4px 10px; font-family: var(--font); font-size: 9px;
+      letter-spacing: 2px; cursor: pointer;
+    }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+    .btn-row .btn-primary, .btn-row .btn-secondary { width: auto; flex: 1; }
+
+    /* ── MODAL ── */
+    #modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.9); z-index: 1000;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    #modal-overlay.show { display: flex; }
+    #modal-box {
+      background: var(--bg2); border: 1px solid var(--border2);
+      padding: 24px; width: 100%; max-width: 380px;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal-sub { font-size: 9px; letter-spacing: 4px; color: var(--text3); margin-bottom: 4px; }
+    .modal-title { font-size: 16px; font-weight: 900; margin-bottom: 18px; }
+    .modal-hint {
+      background: #1a1000; border: 1px solid #ff990033;
+      padding: 10px; margin-bottom: 14px;
+    }
+    .modal-hint-label { font-size: 9px; color: var(--accent-oli); letter-spacing: 2px; margin-bottom: 3px; }
+    .modal-hint-val { font-size: 11px; color: #cc8800; }
+    .modal-hint-sub { font-size: 10px; color: #885500; margin-top: 2px; }
+
+    .field { margin-bottom: 12px; }
+    .field-label { font-size: 9px; letter-spacing: 3px; color: var(--text3); margin-bottom: 5px; text-transform: uppercase; }
+    .field input {
+      width: 100%; background: #0a0a0a; border: 1px solid var(--border2);
+      color: var(--text); font-family: var(--font); font-size: 13px;
+      padding: 8px 10px; outline: none;
+    }
+    .field input:focus { border-color: #555; }
+
+    /* ── EMPTY STATE ── */
+    .empty { text-align: center; padding: 50px 20px; color: var(--text3); letter-spacing: 2px; font-size: 11px; }
+
+    /* ── SPECBOX ── */
+    .spec-box { background: var(--bg); padding: 10px; border: 1px solid var(--border); }
+    .spec-label { font-size: 8px; letter-spacing: 3px; color: var(--text3); }
+    .spec-val { font-size: 13px; font-weight: 900; margin-top: 4px; color: var(--accent-oli); }
+
+    /* ── INSTALL HINT ── */
+    #install-hint {
+      background: #001a0e; border: 1px solid #1aff8c33;
+      padding: 10px 14px; margin-bottom: 14px; display: none;
+    }
+    #install-hint.show { display: block; }
+    .install-label { font-size: 9px; color: var(--accent-part); letter-spacing: 3px; margin-bottom: 4px; }
+    .install-text { font-size: 11px; color: #00cc66; }
+
+    /* ── RIWAYAT HEADER ── */
+    .riwayat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .riwayat-count { font-size: 9px; letter-spacing: 3px; color: var(--text3); }
+
+    /* Scrollbar */
+    #content::-webkit-scrollbar { width: 4px; }
+    #content::-webkit-scrollbar-track { background: transparent; }
+    #content::-webkit-scrollbar-thumb { background: #333; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div class="header-sub">◈ HONDA VARIO 150 · SISTEM PERAWATAN</div>
+    <div class="header-row">
+      <div class="header-title">MOTO SERVICE LOG</div>
+      <div class="km-wrap">
+        <div class="km-label">ODOMETER</div>
+        <input class="km-input" id="km-input" type="number" inputmode="numeric" placeholder="0">
+        <span class="km-unit"> KM</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALERT BANNER -->
+  <div id="alert-banner">
+    <div class="alert-title" id="alert-title">⚠ PERLU PERHATIAN</div>
+    <div id="alert-list"></div>
+    <button id="alert-close">✕</button>
+  </div>
+
+  <!-- TABBAR -->
+  <div id="tabbar">
+    <button class="tab-btn active" data-tab="dashboard">🏠 Dashboard</button>
+    <button class="tab-btn" data-tab="rekomendasi">🛢️ Oli</button>
+    <button class="tab-btn" data-tab="sparepart">🔧 Spare Part</button>
+    <button class="tab-btn" data-tab="riwayat">📋 Riwayat</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- DASHBOARD -->
+    <div class="tab-panel active" id="tab-dashboard">
+      <div id="install-hint" class="show">
+        <div class="install-label">📲 INSTALL KE HOME SCREEN IPHONE</div>
+        <div class="install-text">Tap tombol Share (□↑) di Safari → pilih "Add to Home Screen" → data tersimpan otomatis.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">STATUS GANTI OLI · INTERVAL 2.000 KM / 3 BULAN</div>
+        <div class="grid2">
+          <div class="mini-card">
+            <div class="mini-label">TERAKHIR</div>
+            <div class="mini-val" id="oli-last-date">-</div>
+            <div class="mini-sub" id="oli-last-km">-</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">BERIKUTNYA (KM)</div>
+            <div id="oli-next-km-badge"></div>
+            <div class="mini-sub" id="oli-next-km-val"></div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">BERIKUTNYA (WAKTU)</div>
+            <div id="oli-next-date-badge"></div>
+          </div>
+          <div class="mini-card" style="display:flex;align-items:center;justify-content:center;">
+            <button class="btn-action" onclick="openModal('oli')">+ CATAT GANTI OLI</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">STATUS SERVIS BERKALA · INTERVAL 4.000 KM / 6 BULAN</div>
+        <div class="grid2">
+          <div class="mini-card">
+            <div class="mini-label">TERAKHIR</div>
+            <div class="mini-val" id="serv-last-date">-</div>
+            <div class="mini-sub" id="serv-last-km">-</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">BERIKUTNYA (KM)</div>
+            <div id="serv-next-km-badge"></div>
+            <div class="mini-sub" id="serv-next-km-val"></div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">BERIKUTNYA (WAKTU)</div>
+            <div id="serv-next-date-badge"></div>
+          </div>
+          <div class="mini-card" style="display:flex;align-items:center;justify-content:center;">
+            <button class="btn-action" onclick="openModal('servis')">+ CATAT SERVIS</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">SPARE PART · STATUS CEPAT</div>
+        <div id="sp-quick-list"></div>
+      </div>
+    </div>
+
+    <!-- REKOMENDASI OLI -->
+    <div class="tab-panel" id="tab-rekomendasi">
+      <div class="card" style="border:1px solid #2a1a00;">
+        <div class="card-label">SPESIFIKASI RESMI · VARIO 150</div>
+        <div class="grid3">
+          <div class="spec-box"><div class="spec-label">VISKOSITAS</div><div class="spec-val">10W-30</div></div>
+          <div class="spec-box"><div class="spec-label">KAPASITAS</div><div class="spec-val">0.8 L</div></div>
+          <div class="spec-box"><div class="spec-label">INTERVAL</div><div class="spec-val" style="font-size:11px;">2.000 km / 3 bln</div></div>
+        </div>
+      </div>
+      <div id="oli-list"></div>
+    </div>
+
+    <!-- SPARE PART -->
+    <div class="tab-panel" id="tab-sparepart">
+      <div style="font-size:9px;letter-spacing:3px;color:var(--text3);margin-bottom:12px;" id="sp-km-label">
+        JADWAL SPARE PART · HONDA VARIO 150
+      </div>
+      <div id="sp-detail-list"></div>
+    </div>
+
+    <!-- RIWAYAT -->
+    <div class="tab-panel" id="tab-riwayat">
+      <div class="riwayat-header">
+        <div class="riwayat-count" id="log-count">0 CATATAN</div>
+        <button class="btn-danger" onclick="resetData()">RESET DATA</button>
+      </div>
+      <div id="log-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-sub">CATAT RIWAYAT</div>
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-hint" style="display:none;" class="modal-hint">
+      <div class="modal-hint-label">💡 REKOMENDASI</div>
+      <div class="modal-hint-val">AHM Oil MPX2 10W-30 · 0.8L</div>
+      <div class="modal-hint-sub">Ganti berikutnya: +2.000 km atau 3 bulan</div>
+    </div>
+    <div id="modal-sp-info" style="display:none;background:#0e0e0e;padding:10px;margin-bottom:14px;border:1px solid #1e1e1e;">
+      <div style="font-size:11px;color:var(--text2);" id="modal-sp-info-text"></div>
+    </div>
+    <div class="field">
+      <div class="field-label">Tanggal</div>
+      <input type="date" id="f-date">
+    </div>
+    <div class="field">
+      <div class="field-label">Odometer / KM Saat Ini</div>
+      <input type="number" inputmode="numeric" id="f-km" placeholder="contoh: 12500">
+    </div>
+    <div class="field">
+      <div class="field-label">Catatan (opsional)</div>
+      <input type="text" id="f-note" placeholder="misal: ganti di AHASS Surakarta">
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="saveModal()">SIMPAN</button>
+      <button class="btn-secondary" onclick="closeModal()">BATAL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────────────
+const KEY = 'motolog-v1';
+
+const OLI_DATA = [
+  { nama:'AHM Oil MPX2', viskositas:'10W-30', tipe:'Semi-Synthetic', kapasitas:'0.8L', harga:'Rp 45.000–55.000', rating:5, catatan:'Rekomendasi resmi Honda untuk Vario 150', top:true },
+  { nama:'Castrol Power 1 Scooter', viskositas:'10W-30', tipe:'Full Synthetic', kapasitas:'0.8L', harga:'Rp 65.000–80.000', rating:4, catatan:'Cocok iklim tropis, performa lebih halus' },
+  { nama:'Shell Advance AX5 Scooter', viskositas:'10W-30', tipe:'Mineral+', kapasitas:'0.8L', harga:'Rp 38.000–48.000', rating:4, catatan:'Pilihan ekonomis harian' },
+  { nama:'Motul Scooter LE 10W-30', viskositas:'10W-30', tipe:'Full Synthetic', kapasitas:'0.8L', harga:'Rp 85.000–100.000', rating:5, catatan:'Performa tinggi, cocok touring jarak jauh' },
+];
+
+const SP_DATA = [
+  { id:'busi', nama:'Busi', kode:'CPR8EA-9 (NGK)', intervalKM:8000, harga:'Rp 20.000–35.000', icon:'⚡', prioritas:'tinggi', tip:'Cek elektroda, ganti jika sudah aus atau hitam' },
+  { id:'filter_udara', nama:'Filter Udara', kode:'17210-K59-V01', intervalKM:8000, harga:'Rp 35.000–50.000', icon:'🌬️', prioritas:'tinggi', tip:'Bersihkan setiap 4.000 km, ganti setiap 8.000 km' },
+  { id:'kampas_rem_depan', nama:'Kampas Rem Depan', kode:'Standard Honda', intervalKM:15000, harga:'Rp 80.000–120.000', icon:'🔴', prioritas:'kritis', tip:'Cek ketebalan kampas, ganti jika < 1mm' },
+  { id:'kampas_rem_belakang', nama:'Kampas Rem Belakang', kode:'Standard Honda', intervalKM:20000, harga:'Rp 50.000–80.000', icon:'🔴', prioritas:'kritis', tip:'Biasanya lebih awet dari rem depan' },
+  { id:'v_belt', nama:'V-Belt / Drive Belt', kode:'23100-K59-V01', intervalKM:24000, harga:'Rp 150.000–200.000', icon:'⚙️', prioritas:'kritis', tip:'Jangan tunggu putus! Ganti sebelum 24.000 km' },
+  { id:'roller', nama:'Roller CVT', kode:'22123-K59-V01', intervalKM:24000, harga:'Rp 80.000–120.000', icon:'🔩', prioritas:'tinggi', tip:'Ganti bersamaan dengan V-belt' },
+  { id:'filter_oli', nama:'Filter Oli', kode:'15412-KYJ-900', intervalKM:8000, harga:'Rp 25.000–40.000', icon:'🛢️', prioritas:'tinggi', tip:'Ganti setiap 2x ganti oli, atau 8.000 km' },
+  { id:'ban', nama:'Ban (sepasang)', kode:'90/90-14 depan / 100/90-14 belakang', intervalKM:20000, harga:'Rp 200.000–400.000', icon:'⭕', prioritas:'kritis', tip:'Cek tekanan angin rutin, ganti jika botak atau retak' },
+  { id:'aki', nama:'Aki / Baterai', kode:'YTZ5S (MF)', intervalKM:null, intervalTahun:2, harga:'Rp 200.000–350.000', icon:'🔋', prioritas:'sedang', tip:'Cek setiap 6 bulan, umur rata-rata 2–3 tahun' },
+];
+
+let state = {
+  kmSekarang: '',
+  tanggalOliTerakhir: '', kmOliTerakhir: '',
+  tanggalServTerakhir: '', kmServTerakhir: '',
+  spareParts: {},
+  logs: [],
+};
+
+let modalType = null, modalSpId = null;
+
+// ── STORAGE ──────────────────────────────────────────────────────────────────
+function load() {
+  try { const s = localStorage.getItem(KEY); if (s) state = JSON.parse(s); } catch {}
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+}
+
+// ── UTILS ────────────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '-';
+  return new Date(d).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+}
+function daysDiff(dateStr) {
+  if (!dateStr) return null;
+  return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+}
+function badge(diff, unit='hari') {
+  if (diff === null) return '<span class="badge badge-empty">Belum dicatat</span>';
+  if (diff < 0) return `<span class="badge badge-danger">LEWAT ${Math.abs(diff)} ${unit}</span>`;
+  if (diff <= (unit==='hari' ? 14 : 500)) return `<span class="badge badge-warn">SEGERA · ${diff} ${unit}</span>`;
+  return `<span class="badge badge-ok">${diff} ${unit} lagi</span>`;
+}
+function stars(n) {
+  return `<span class="oli-star">${'★'.repeat(n)}${'☆'.repeat(5-n)}</span>`;
+}
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function addDays(dateStr, days) {
+  const d = new Date(dateStr); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10);
+}
+function kmNow() { return parseInt(state.kmSekarang) || 0; }
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderDashboard();
+  renderOliList();
+  renderSparePartList();
+  renderLogs();
+  renderAlerts();
+  document.getElementById('km-input').value = state.kmSekarang || '';
+  document.getElementById('sp-km-label').textContent =
+    `JADWAL SPARE PART · HONDA VARIO 150 · ODOMETER: ${kmNow().toLocaleString('id-ID')} KM`;
+}
+
+function renderDashboard() {
+  const km = kmNow();
+
+  // OLI
+  const oliNextKM = state.kmOliTerakhir ? parseInt(state.kmOliTerakhir) + 2000 : null;
+  const oliKMDiff = oliNextKM ? oliNextKM - km : null;
+  const oliNextDate = state.tanggalOliTerakhir ? addDays(state.tanggalOliTerakhir, 90) : null;
+  const oliDateDiff = daysDiff(oliNextDate);
+
+  document.getElementById('oli-last-date').textContent = fmtDate(state.tanggalOliTerakhir);
+  document.getElementById('oli-last-km').textContent = state.kmOliTerakhir ? `${parseInt(state.kmOliTerakhir).toLocaleString('id-ID')} km` : '-';
+  document.getElementById('oli-next-km-badge').innerHTML = badge(oliKMDiff, 'km');
+  document.getElementById('oli-next-km-val').textContent = oliNextKM ? `Target: ${oliNextKM.toLocaleString('id-ID')} km` : '';
+  document.getElementById('oli-next-date-badge').innerHTML = badge(oliDateDiff, 'hari');
+
+  // SERVIS
+  const sNextKM = state.kmServTerakhir ? parseInt(state.kmServTerakhir) + 4000 : null;
+  const sKMDiff = sNextKM ? sNextKM - km : null;
+  const sNextDate = state.tanggalServTerakhir ? addDays(state.tanggalServTerakhir, 180) : null;
+  const sDateDiff = daysDiff(sNextDate);
+
+  document.getElementById('serv-last-date').textContent = fmtDate(state.tanggalServTerakhir);
+  document.getElementById('serv-last-km').textContent = state.kmServTerakhir ? `${parseInt(state.kmServTerakhir).toLocaleString('id-ID')} km` : '-';
+  document.getElementById('serv-next-km-badge').innerHTML = badge(sKMDiff, 'km');
+  document.getElementById('serv-next-km-val').textContent = sNextKM ? `Target: ${sNextKM.toLocaleString('id-ID')} km` : '';
+  document.getElementById('serv-next-date-badge').innerHTML = badge(sDateDiff, 'hari');
+
+  // SP Quick
+  const spList = document.getElementById('sp-quick-list');
+  spList.innerHTML = SP_DATA.filter(sp=>sp.intervalKM).map(sp => {
+    const rec = state.spareParts?.[sp.id];
+    const diff = rec?.kmTerakhir ? (parseInt(rec.kmTerakhir) + sp.intervalKM - km) : null;
+    const tagClass = sp.prioritas === 'kritis' ? 'tag-kritis' : sp.prioritas === 'tinggi' ? 'tag-tinggi' : '';
+    return `<div class="part-row">
+      <div>
+        <span>${sp.icon}</span>
+        <span class="part-name">${sp.nama}</span>
+        ${sp.prioritas !== 'sedang' ? `<span class="part-tag ${tagClass}">${sp.prioritas.toUpperCase()}</span>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${badge(diff,'km')}
+        <button class="btn-action" style="margin-top:0;padding:3px 8px;font-size:9px;" onclick="openModal('sparepart','${sp.id}')">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderOliList() {
+  document.getElementById('oli-list').innerHTML = OLI_DATA.map((o,i) => `
+    <div class="card oli-card ${o.top?'top':''}">
+      ${o.top ? '<div class="oli-badge">★ REKOMENDASI UTAMA</div>' : ''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="oli-name">${o.nama}</div>
+          <div class="oli-sub">${o.viskositas} · ${o.tipe}</div>
+        </div>
+        ${stars(o.rating)}
+      </div>
+      <div class="grid2" style="margin-top:10px;">
+        <div class="mini-card"><div class="mini-label">KAPASITAS</div><div class="mini-val">${o.kapasitas}</div></div>
+        <div class="mini-card"><div class="mini-label">ESTIMASI HARGA</div><div class="mini-val" style="color:var(--accent-part)">${o.harga}</div></div>
+      </div>
+      <div class="oli-tip">${o.catatan}</div>
+    </div>
+  `).join('');
+}
+
+function renderSparePartList() {
+  const km = kmNow();
+  document.getElementById('sp-detail-list').innerHTML = SP_DATA.map(sp => {
+    const rec = state.spareParts?.[sp.id];
+    const diff = (rec?.kmTerakhir && sp.intervalKM) ? (parseInt(rec.kmTerakhir) + sp.intervalKM - km) : null;
+    const nextKM = rec?.kmTerakhir && sp.intervalKM ? parseInt(rec.kmTerakhir) + sp.intervalKM : null;
+    const prioClass = sp.prioritas === 'kritis' ? 'sp-kritis' : sp.prioritas === 'tinggi' ? 'sp-tinggi' : '';
+    const prioColor = sp.prioritas === 'kritis' ? 'var(--danger)' : sp.prioritas === 'tinggi' ? 'var(--warn)' : '#666';
+    return `
+      <div class="card sp-card ${prioClass}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="sp-priority" style="color:${prioColor}">${sp.prioritas.toUpperCase()} · ${sp.intervalKM ? 'SETIAP '+sp.intervalKM.toLocaleString('id-ID')+' KM' : 'SETIAP '+sp.intervalTahun+' TAHUN'}</div>
+            <div class="sp-name">${sp.icon} ${sp.nama}</div>
+            <div class="sp-code">Kode: ${sp.kode}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="sp-price">${sp.harga}</div>
+            ${nextKM ? `<div style="font-size:9px;color:var(--text3);margin-top:3px;">Target: ${nextKM.toLocaleString('id-ID')} km</div>` : ''}
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:10px;">
+          <div class="mini-card">
+            <div class="mini-label">TERAKHIR DIGANTI</div>
+            <div class="mini-val">${rec?.kmTerakhir ? parseInt(rec.kmTerakhir).toLocaleString('id-ID')+' km' : '-'}</div>
+            <div class="mini-sub">${fmtDate(rec?.tanggal)}</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">STATUS</div>
+            ${badge(diff, 'km')}
+          </div>
+        </div>
+        <div class="sp-tip">💡 ${sp.tip}</div>
+        <button class="btn-action" onclick="openModal('sparepart','${sp.id}')">+ CATAT PENGGANTIAN</button>
+      </div>`;
+  }).join('');
+}
+
+function renderLogs() {
+  const logs = [...(state.logs||[])].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  document.getElementById('log-count').textContent = `${logs.length} CATATAN`;
+  if (!logs.length) {
+    document.getElementById('log-list').innerHTML = '<div class="empty">— BELUM ADA CATATAN —</div>';
+    return;
+  }
+  document.getElementById('log-list').innerHTML = logs.map(log => {
+    const sp = log.spId ? SP_DATA.find(s=>s.id===log.spId) : null;
+    const color = log.type==='oli' ? 'var(--accent-oli)' : log.type==='servis' ? 'var(--accent-servis)' : 'var(--accent-part)';
+    const icon = log.type==='oli' ? '🛢️' : log.type==='servis' ? '⚙️' : (sp?.icon||'🔧');
+    const label = log.type==='oli' ? 'GANTI OLI' : log.type==='servis' ? 'SERVIS' : (sp?.nama?.toUpperCase()||'SPARE PART');
+    return `<div class="log-item" style="border-left:3px solid ${color}">
+      <div class="log-header">
+        <span class="log-type" style="color:${color}">${icon} ${label}</span>
+        <span class="log-date">${fmtDate(log.date)}</span>
+      </div>
+      ${log.km ? `<div class="log-km">📍 ${parseInt(log.km).toLocaleString('id-ID')} km</div>` : ''}
+      ${log.catatan ? `<div class="log-note">"${log.catatan}"</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderAlerts() {
+  const km = kmNow();
+  const alerts = [];
+  const oliNextKM = state.kmOliTerakhir ? parseInt(state.kmOliTerakhir)+2000 : null;
+  const oliKMDiff = oliNextKM ? oliNextKM - km : null;
+  if (oliKMDiff !== null && oliKMDiff <= 500) alerts.push(`Ganti oli dalam ${oliKMDiff} km`);
+  const oliNextDate = state.tanggalOliTerakhir ? addDays(state.tanggalOliTerakhir, 90) : null;
+  const oliDateDiff = daysDiff(oliNextDate);
+  if (oliDateDiff !== null && oliDateDiff <= 14) alerts.push(`Ganti oli dalam ${oliDateDiff} hari`);
+  const sNextKM = state.kmServTerakhir ? parseInt(state.kmServTerakhir)+4000 : null;
+  const sKMDiff = sNextKM ? sNextKM - km : null;
+  if (sKMDiff !== null && sKMDiff <= 500) alerts.push(`Servis dalam ${sKMDiff} km`);
+  SP_DATA.forEach(sp => {
+    const rec = state.spareParts?.[sp.id];
+    if (!rec?.kmTerakhir || !sp.intervalKM) return;
+    const diff = parseInt(rec.kmTerakhir) + sp.intervalKM - km;
+    if (diff <= 500) alerts.push(`${sp.nama}: ganti dalam ${diff} km`);
+  });
+
+  const banner = document.getElementById('alert-banner');
+  if (alerts.length > 0) {
+    banner.classList.add('show');
+    document.getElementById('alert-title').textContent = `⚠ PERLU PERHATIAN (${alerts.length})`;
+    document.getElementById('alert-list').innerHTML = alerts.map(a=>`<div class="alert-item">· ${a}</div>`).join('');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(type, spId) {
+  modalType = type; modalSpId = spId || null;
+  document.getElementById('f-date').value = todayStr();
+  document.getElementById('f-km').value = state.kmSekarang || '';
+  document.getElementById('f-note').value = '';
+
+  const titles = { oli:'🛢️ GANTI OLI', servis:'⚙️ SERVIS BERKALA', sparepart:'🔧 SPARE PART' };
+  let title = titles[type] || type;
+  if (type === 'sparepart' && spId) {
+    const sp = SP_DATA.find(s=>s.id===spId);
+    title = `${sp?.icon||'🔧'} ${sp?.nama?.toUpperCase()||'SPARE PART'}`;
+    document.getElementById('modal-sp-info').style.display = 'block';
+    document.getElementById('modal-sp-info-text').textContent = `Kode: ${sp?.kode||'-'} · ${sp?.harga||''}`;
+    document.getElementById('modal-hint').style.display = 'none';
+  } else {
+    document.getElementById('modal-sp-info').style.display = 'none';
+    document.getElementById('modal-hint').style.display = type === 'oli' ? 'block' : 'none';
+  }
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+function saveModal() {
+  const date = document.getElementById('f-date').value;
+  const km = document.getElementById('f-km').value;
+  const catatan = document.getElementById('f-note').value;
+
+  const log = { id: Date.now(), type: modalType, date, km, catatan, spId: modalSpId, createdAt: new Date().toISOString() };
+  state.logs = [...(state.logs||[]), log];
+
+  if (modalType === 'oli') {
+    state.tanggalOliTerakhir = date;
+    state.kmOliTerakhir = km;
+    if (km) state.kmSekarang = km;
+  } else if (modalType === 'servis') {
+    state.tanggalServTerakhir = date;
+    state.kmServTerakhir = km;
+    if (km) state.kmSekarang = km;
+  } else if (modalType === 'sparepart' && modalSpId) {
+    state.spareParts = { ...state.spareParts, [modalSpId]: { kmTerakhir: km, tanggal: date } };
+    if (km) state.kmSekarang = km;
+  }
+
+  save();
+  closeModal();
+  renderAll();
+}
+
+// ── RESET ─────────────────────────────────────────────────────────────────────
+function resetData() {
+  if (!confirm('Reset semua data? Tidak bisa dibatalkan.')) return;
+  state = { kmSekarang:'', tanggalOliTerakhir:'', kmOliTerakhir:'', tanggalServTerakhir:'', kmServTerakhir:'', spareParts:{}, logs:[] };
+  save(); renderAll();
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+t).classList.add('active');
+  });
+});
+
+// ── KM INPUT ──────────────────────────────────────────────────────────────────
+document.getElementById('km-input').addEventListener('change', e => {
+  state.kmSekarang = e.target.value;
+  save(); renderAll();
+});
+
+// ── ALERT CLOSE ───────────────────────────────────────────────────────────────
+document.getElementById('alert-close').addEventListener('click', () => {
+  document.getElementById('alert-banner').classList.remove('show');
+});
+
+// ── CLOSE MODAL ON OUTSIDE CLICK ──────────────────────────────────────────────
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+load();
+renderAll();
+
+// Hide install hint if already installed (standalone mode)
+if (window.navigator.standalone) {
+  document.getElementById('install-hint').classList.remove('show');
+}
+</script>
+</body>
+</html>
