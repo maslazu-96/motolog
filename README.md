@@ -1,2 +1,1 @@
-# motolog
-untuk cek service berkala motor
+cek riwayat service motor
